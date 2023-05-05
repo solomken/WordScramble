@@ -12,6 +12,10 @@ struct ContentView: View {
     @State private var rootWord = "" //spelling from
     @State private var newWord = "" //binded to textfield
     
+    @State private var showingError = false
+    @State private var errorTitle = ""
+    @State private var errorMessage = ""
+    
     var body: some View {
         NavigationView {
             List {
@@ -32,6 +36,11 @@ struct ContentView: View {
             .navigationTitle(rootWord)
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
+            .alert(errorTitle, isPresented: $showingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
@@ -39,23 +48,43 @@ struct ContentView: View {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         guard answer.count > 0 else { return }
         
-        withAnimation {
-            let rootWordSet = Set(rootWord)
-            let newWordSet = Set(newWord)
-            let isContain = newWordSet.isSubset(of: rootWordSet)
-            
-            let checker = UITextChecker()
-            let range = NSRange(location: 0, length: answer.utf16.count) // make an array of string starting with 0 and being as long as utf16-length of word
-            let misspelledRange = checker.rangeOfMisspelledWord(in: answer, range: range, startingAt: 0, wrap: false, language: "en")
-            let allGood = misspelledRange.location == NSNotFound
-            
-            if usedWords.contains(answer) || !isContain || !allGood {
-                return //ignoring duplicates and words which do not contains root word letters
-            } else {
-                usedWords.insert(answer, at: 0) //for UX reasons: it's better for user to see that his word is saved in the list
-            }
+        guard isOriginal(word: answer) else {
+            validationError(title: "Word used already", message: "Be more original")
+            return
         }
+        
+        guard isPossible(word: answer) else {
+            validationError(title: "Word not possible", message: "You can't spell this word from \(rootWord)")
+            return
+        }
+        
+        guard isReal(word: answer) else {
+            validationError(title: "Word not recognized", message: "Dude c'mon")
+            return
+        }
+        
+        withAnimation {
+            usedWords.insert(answer, at: 0) //for UX reasons: it's better for user to see that his word is saved in the list
+        }
+        
         newWord = ""
+    }
+    
+    func isPossible(word: String) -> Bool {
+        let rootWordSet = Set(rootWord)
+        let newWordSet = Set(word)
+        return newWordSet.isSubset(of: rootWordSet)
+    }
+    
+    func isOriginal(word: String) -> Bool {
+        return !usedWords.contains(word)
+    }
+    
+    func isReal(word: String) -> Bool {
+        let checker = UITextChecker()
+        let range = NSRange(location: 0, length: word.utf16.count) // make an array of string starting with 0 and being as long as utf16-length of word
+        let misspelledRange = checker.rangeOfMisspelledWord(in: word, range: range, startingAt: 0, wrap: false, language: "en")
+        return misspelledRange.location == NSNotFound
     }
     
     func startGame() {
@@ -68,6 +97,12 @@ struct ContentView: View {
         }
         
         fatalError("Opps! Could not load start.txt from bundle.")
+    }
+    
+    func validationError (title: String, message: String) {
+        errorTitle = title
+        errorMessage = message
+        showingError = true
     }
 }
 
