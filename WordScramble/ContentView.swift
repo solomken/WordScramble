@@ -4,6 +4,8 @@
 //
 //  Created by Anastasiia Solomka on 05.05.2023.
 //
+//https://www.hackingwithswift.com/100/swiftui/29
+//improvements: https://www.hackingwithswift.com/books/ios-swiftui/word-scramble-wrap-up
 
 import SwiftUI
 
@@ -16,10 +18,11 @@ struct ContentView: View {
     @State private var errorTitle = ""
     @State private var errorMessage = ""
     
+    @State private var score = 0
+    
     enum FocusedField {
         case inputField
     }
-    
     @FocusState private var focusedField: FocusedField?
     
     var body: some View {
@@ -41,6 +44,9 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(rootWord)
+            .toolbar {
+                Button("Restart", action: startGame)
+            }
             .onSubmit(addNewWord)
             .onSubmit {
                 focusedField = .inputField
@@ -54,12 +60,28 @@ struct ContentView: View {
             } message: {
                 Text(errorMessage)
             }
+            .safeAreaInset(edge: .bottom) {
+                Text("Your score: \(score)")
+                    .foregroundColor(.white)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .font(.title)
+                    .background(.cyan)
+            }
         }
     }
     
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        guard answer.count > 0 else { return }
+        guard answer.count > 2 else {
+            validationError(title: "Word is too short", message: "You cannot use words that are shorter than 3 characters")
+            return
+        }
+        
+        guard answer != rootWord else {
+            validationError(title: "\(rootWord) is original word", message: "You cannot use original word")
+            return
+        }
         
         guard isOriginal(word: answer) else {
             validationError(title: "Word used already", message: "Be more original")
@@ -72,15 +94,21 @@ struct ContentView: View {
         }
         
         guard isReal(word: answer) else {
-            validationError(title: "Word not recognized", message: "Dude c'mon")
+            validationError(title: "Word not recognized", message: "We don't know this word, sorry bro")
             return
         }
         
         withAnimation {
             usedWords.insert(answer, at: 0) //for UX reasons: it's better for user to see that his word is saved in the list
         }
-        
+    
         newWord = ""
+        
+        if answer.count > 3 {
+            score += answer.count
+        } else {
+            score += 1
+        }
     }
     
     func isPossible(word: String) -> Bool {
@@ -101,6 +129,10 @@ struct ContentView: View {
     }
     
     func startGame() {
+        usedWords.removeAll()
+        newWord = ""
+        score = 0
+        
         if let startWordsURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
             if let fileContents = try? String(contentsOf: startWordsURL) { //if we found URL do
                 let allWords = fileContents.description.components(separatedBy: "\n") //creates array of string without any separates characters
