@@ -16,12 +16,19 @@ struct ContentView: View {
     @State private var errorTitle = ""
     @State private var errorMessage = ""
     
+    enum FocusedField {
+        case inputField
+    }
+    
+    @FocusState private var focusedField: FocusedField?
+    
     var body: some View {
         NavigationView {
             List {
                 Section {
                     TextField("Enter your word", text: $newWord)
                         .autocapitalization(.none)
+                        .focused($focusedField, equals: .inputField)
                 }
                 
                 Section {
@@ -35,7 +42,13 @@ struct ContentView: View {
             }
             .navigationTitle(rootWord)
             .onSubmit(addNewWord)
+            .onSubmit {
+                focusedField = .inputField
+            }
             .onAppear(perform: startGame)
+            .onAppear {
+                focusedField = .inputField
+            }
             .alert(errorTitle, isPresented: $showingError) {
                 Button("OK", role: .cancel) { }
             } message: {
